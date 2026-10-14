@@ -1,0 +1,149 @@
+%% Blue cover color
+\definecolor{titlepagecolor}{RGB}{120,55,59}
+
+%==========================================================================
+% COLORED BAR ON THE LEFT SIDE
+%==========================================================================
+
+\backgroundsetup{
+    scale=1, 
+    angle=0, 
+    opacity=1,
+    contents={
+        \begin{tikzpicture}[remember picture,overlay]
+            \path [fill=titlepagecolor] 
+                (current page.north west) -- ($(current page.north west) + (5,0)$)
+                -- ($(current page.south west) + (5,0)$)-- (current page.south west); 
+            \node[color=white] at ($(current page.south west) + (3,4)$) {\bfseries {\fontsize{120}{60} \textsf{LI}}};
+            \node[color=titlepagecolor] at ($(current page.south west) + (5.8,4)$) {\bfseries {\fontsize{120}{60} \textsf{ 3}}};
+        \end{tikzpicture}
+    }
+}
+
+%==========================================================================
+% TITLE PAGE INFO
+%==========================================================================
+
+%% Changes values in this field to show information in the cover and back cover about your team/project
+
+
+%% TITLE
+\title{Relatório Fase 2}
+
+%% AUTHORS
+\author{%
+\textbf{Maria Fernandes da Silva} \hspace{0.5cm} {\small A106802} \\
+\textbf{Matilde Rodrigues Teixeira} \hspace{0.5cm} {\small A106876} \\
+\textbf{Francisco Duarte Fernandes Silva} \hspace{0.5cm} {\small A100752}
+}
+
+%% Date
+\date{\today}
+
+%% Course
+\newcommand{\Course}{Licenciatura de Engenharia Informática}
+
+%% Department
+\newcommand{\Department}{Escola de Engenharia}
+
+%% UniName
+\newcommand{\UniName}{Universidade do Minho}
+
+%% UniPic
+\newcommand{\UniPic}{\includegraphics[scale=0.09]{images/uminho.png}}
+
+%% University 
+\newcommand{\University}{
+    \begin{flushleft}
+        \UniPic
+    \end{flushleft}
+    \textcolor{gray}{\small\textbf{\textsf{\UniName}}}\par
+    \textcolor{gray!80!white}{\small{\textsf{\Department}}}\par
+    \textcolor{gray!70!white}{\small{\textsf{\Course}}}
+}
+
+%% UC
+\newcommand{\UC}{
+    \begin{flushleft}
+        \par\textcolor{titlepagecolor}{  \LARGE\textbf{\textsf{Laboratórios de Informática III}}}
+    \end{flushleft}
+}
+
+%% School Year
+\newcommand{\SchoolYear}{
+    \small{\textsf{Ano Letivo de 2025/2026}}}
+
+
+%% Define new command to show title, author and date
+\makeatletter
+\let\Title\@title
+\let\Author\@author
+\let\Date\@date
+\makeatother
+
+%==========================================================================
+% CLASSIFICATION SECTION 
+%==========================================================================
+
+%% School Year
+\newcommand{\ReceptionDate}{}
+%% Responsible
+\newcommand{\Responsible}{}
+%% Evaluation
+\newcommand{\Evaluation}{}
+%% Observations
+\newcommand{\Observations}{}
+
+
+
+
+
+%% MAKETEMPLATE
+\newcommand{\makecover}{
+
+%==========================================================================
+% BEGIN COVER PAGE 
+%==========================================================================
+
+%% Removes page number on footer
+\thispagestyle{empty}
+
+%% No indentation 
+\setlength{\parindent}{0em}
+
+%% Put Background defined on \backgroundsetup, in this page
+\BgThispage
+
+%% Changing geometry to prevent overlay with text
+%% At the end of back cover, geometry is default with \restoregeometry
+\newgeometry{top=4cm,left=6cm,right=3cm,bottom=2cm}
+
+%% builds university info defined previously
+\University
+\vspace{1cm}
+%% builds curricular unity info defined previously
+\UC
+%% builds school year info defined previously
+\SchoolYear
+
+\vspace*{4cm}
+%% bigger space (i think its the default one) between paragraphs 
+\setlength{\parskip}{1em}
+
+%% builds title info defined previously
+\par\textbf{\textsf{\huge\Title}}
+\vspace{1.5cm}
+%% builds author(s) info defined previously
+\par\Author
+
+\vspace{0.5cm}
+
+%% builds date info defined previously
+\par\Date
+\restoregeometry
+\pagebreak
+
+%==========================================================================
+% END COVER PAGE 
+%==========================================================================
+}

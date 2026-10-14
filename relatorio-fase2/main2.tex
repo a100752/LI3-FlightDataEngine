@@ -1,0 +1,1064 @@
+\documentclass[a4paper,12pt]{scrreprt}
+
+\usepackage{geometry} %% Used for changing geometry of the page
+\usepackage[portuguese]{babel} %% Portuguese language
+\usepackage[T1]{fontenc} %% Font setup (pdfLaTeX compatible)
+\usepackage[utf8]{inputenc}
+\usepackage{helvet}
+\renewcommand{\familydefault}{\sfdefault} % Arial-like font
+\usepackage{xcolor,colortbl} %% Colors and tables
+\usepackage{arydshln}
+\usepackage[intoc]{nomencl} %% Acronyms
+\makenomenclature
+\usepackage{graphicx} %% Images
+\graphicspath{{images/}}
+\usepackage{hyperref} %% Hyperlinks
+\hypersetup{
+    colorlinks,
+    citecolor=black,
+    filecolor=black,
+    linkcolor=black,
+    urlcolor=black
+}
+\usepackage{amsmath} %% Math
+\usepackage[some]{background} %% Background (for cover)
+\usepackage{tikz} %% TikZ graphics
+\usetikzlibrary{calc}
+\usepackage{listings} %% Code listings
+\usepackage{float} %% Better float positioning
+
+%% Code listing style
+\lstset{
+    basicstyle=\ttfamily\footnotesize,
+    breaklines=true,
+    frame=single,
+    language=C,
+    showstringspaces=false,
+    numbers=left,
+    numberstyle=\tiny,
+    tabsize=4
+}
+
+%% ======================= %%
+%% DOCUMENT
+\begin{document}
+\include{cover} %% Costume made cover
+\pagenumbering{gobble}
+\makecover % builds the cover
+\newgeometry{top=3cm,left=3cm,right=3cm,bottom=4cm} %% smaller footer and header size
+
+%% BEGIN ABSTRACT PAGE
+\renewenvironment{abstract}
+ {\par\noindent\textbf{\Large\abstractname}\par\bigskip}
+ {}
+
+\pagebreak
+
+%% BEGIN INDEXES PAGES
+\renewcommand{\contentsname}{Índice}
+\tableofcontents
+\pagebreak
+
+
+%% BEGIN INTRODUCTION
+\pagenumbering{arabic}
+\chapter{Introdução}
+
+O presente relatório descreve o desenvolvimento da segunda fase do projeto da unidade curricular de Laboratórios de Informática III, implementado em linguagem C. Este projeto centra-se na construção de um sistema destinado à gestão de informação relativa a voos, passageiros, aeronaves, aeroportos e reservas, armazenada inicialmente em ficheiros CSV.
+
+A Fase 2 representa uma evolução significativa face à Fase 1, introduzindo novas funcionalidades e otimizações que visam suportar datasets de maior escala. Nesta fase, foram implementadas três novas queries (Q4, Q5 e Q6) e foi atualizada a Query 1, conforme especificado no enunciado. Adicionalmente, o sistema foi preparado para lidar com um volume de dados substancialmente maior.
+
+Ao longo desta fase, continuaram a ser aplicados os princípios de modularidade e encapsulamento introduzidos na primeira fase, garantindo uma clara separação de responsabilidades entre componentes. Foi dada especial atenção à utilização de estruturas de dados eficientes, nomeadamente hash tables da biblioteca GLib, para assegurar um desempenho adequado nas operações de pesquisa e agregação de dados.
+
+O sistema inclui um programa principal que coordena o fluxo geral de execução, e um programa de testes destinado a validar o comportamento das funcionalidades implementadas. Esta fase teve como objetivo consolidar a base estrutural e funcional do sistema, preparando-o para responder às exigências de desempenho e correção definidas no enunciado.
+
+
+\chapter{Metodologia utilizada e descrição do sistema}
+
+\section{Arquitetura geral}
+
+A arquitetura do sistema foi concebida de forma modular, mantendo a estrutura base da Fase 1 e expandindo-a para acomodar as novas funcionalidades. O código encontra-se organizado nas seguintes diretorias principais:
+
+\begin{itemize}
+    \item \texttt{src/apresentacao/} -- Contém os programas executáveis: \texttt{programa-principal.c} e \texttt{programa-testes.c}
+    \item \texttt{src/logica/} -- Módulos de lógica de negócio, incluindo queries, validações e gestão de comandos
+    \item \texttt{src/logica/entidades/} -- Definição das entidades do sistema (Airport, Flight, Passenger, Aircraft, Reservation)
+    \item \texttt{src/repositorios/} -- Repositórios para gestão das coleções de entidades
+    \item \texttt{src/parsers/} -- Módulos de parsing de ficheiros CSV
+    \item \texttt{include/} -- Ficheiros de cabeçalho (.h) correspondentes
+\end{itemize}
+
+No centro do fluxo encontra-se o programa principal, responsável por iniciar o sistema, carregar os dados através do parser genérico e construir os repositórios das diferentes entidades. Este programa coordena, posteriormente, a execução das queries através do módulo \texttt{gestor-queries.c} e a apresentação dos respetivos resultados.
+
+O módulo \texttt{dados.c} funciona como agregador central, contendo referências para todos os repositórios e estruturas auxiliares necessárias às queries. Esta abordagem permite que as queries acedam aos dados de forma uniforme, sem necessidade de conhecer os detalhes de implementação de cada repositório.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+    box/.style={rectangle, draw, minimum width=2.5cm, minimum height=0.8cm, align=center},
+    arrow/.style={->, thick}
+]
+    % Programa Principal
+    \node[box, fill=blue!20] (main) at (0,4) {Programa\\Principal};
+    
+    % Parser
+    \node[box, fill=green!20] (parser) at (-3,2) {Parser};
+    
+    % Dados
+    \node[box, fill=yellow!20] (dados) at (0,2) {Dados};
+    
+    % Gestor Queries
+    \node[box, fill=orange!20] (gestor) at (3,2) {Gestor\\Queries};
+    
+    % Repositórios
+    \node[box, fill=gray!20] (repos) at (-3,0) {Repositórios};
+    
+    % Entidades
+    \node[box, fill=purple!20] (entidades) at (0,0) {Entidades};
+    
+    % Queries
+    \node[box, fill=red!20] (queries) at (3,0) {Q1-Q6};
+    
+    % Output
+    \node[box, fill=cyan!20] (output) at (3,-2) {Output};
+    
+    % Arrows
+    \draw[arrow] (main) -- (parser);
+    \draw[arrow] (main) -- (dados);
+    \draw[arrow] (main) -- (gestor);
+    \draw[arrow] (parser) -- (repos);
+    \draw[arrow] (repos) -- (entidades);
+    \draw[arrow] (dados) -- (repos);
+    \draw[arrow] (gestor) -- (queries);
+    \draw[arrow] (queries) -- (dados);
+    \draw[arrow] (queries) -- (output);
+\end{tikzpicture}
+\caption{Arquitetura geral do sistema}
+\end{figure}
+
+Esta arquitetura permitiu a construção de um sistema coerente, bem estruturado e facilmente extensível, respeitando os princípios de modularidade e encapsulamento enfatizados nos guiões da unidade curricular.
+
+
+\section{Estruturas de dados}
+
+Cada entidade é representada por uma \texttt{struct} definida no respetivo ficheiro de implementação, garantindo o encapsulamento. As entidades \texttt{Passenger}, \texttt{Airport}, \texttt{Aircraft}, \texttt{Flight} e \texttt{Reservation} incluem apenas os campos necessários para as validações e para as queries, evitando armazenar informação redundante.
+
+\subsection{Repositórios e Hash Tables}
+
+No que diz respeito ao armazenamento, cada tipo de entidade é guardado no seu repositório através de uma \texttt{GHashTable} da biblioteca GLib. Esta escolha permite pesquisas em tempo constante $O(1)$, uma vez que cada entidade pode ser acedida diretamente através do seu identificador. Por exemplo, o \texttt{RepositorioFlights} mantém:
+
+\begin{itemize}
+    \item \texttt{by\_id} -- Hash table principal para acesso por identificador do voo
+    \item \texttt{count\_por\_aircraft} -- Hash table para contagem de voos por aeronave (Q2)
+    \item \texttt{departures\_por\_data} -- Hash table aninhada para partidas por data e aeroporto (Q3)
+    \item \texttt{delay\_por\_companhia} -- Hash table para estatísticas de atrasos por companhia (Q5)
+\end{itemize}
+
+\subsection{Estruturas Auxiliares para Queries}
+
+Para operações que exigem ordenação ou percursos sequenciais, são utilizados arrays dinâmicos (\texttt{GArray} ou arrays C convencionais), que facilitam a organização e ordenação dos elementos através da função \texttt{qsort}.
+
+A Query 6 requer uma estrutura auxiliar baseada numa hash table aninhada no módulo \texttt{dados.c}, onde cada chave representa uma nacionalidade e o valor corresponde a outra hash table que mapeia aeroportos para contagens de chegadas.
+
+\subsection{Alocação de Memória}
+
+A alocação de memória é realizada maioritariamente através das funções da GLib (\texttt{g\_new0}, \texttt{g\_slice\_new0}, \texttt{g\_strdup}), que oferecem gestão de memória otimizada. Todas as entidades possuem funções construtoras e destrutoras dedicadas, seguindo o padrão:
+
+\begin{lstlisting}
+Flight *flight_new(...);
+void flight_free(Flight *f);
+\end{lstlisting}
+
+
+\section{Parsing dos dados}
+
+O parsing foi desenvolvido com base num módulo genérico (\texttt{parser.c}) que pode operar sobre qualquer tipo de entidade, desde que lhe seja fornecida a função de construção apropriada. O parser lê os ficheiros CSV, separa as colunas através da função \texttt{split\_csv\_line}, verifica a validade sintática da linha, converte-a numa entidade se os dados forem válidos e insere a entidade no respetivo repositório.
+
+\subsection{Otimizações de Parsing}
+
+Na Fase 2, foram implementadas várias otimizações no parsing para lidar com datasets de maior dimensão:
+
+\begin{itemize}
+    \item \textbf{Buffering aumentado} -- Utilização de \texttt{setvbuf} com buffers de 1 MB tanto para leitura como para escrita de erros
+    \item \textbf{Ficheiro de erros único} -- O ficheiro de erros é aberto uma única vez por entidade, em vez de abrir/fechar por linha inválida
+    \item \textbf{Função genérica de loading} -- A função \texttt{generic\_loader} centraliza a lógica comum de carregamento, recebendo ponteiros para funções específicas de cada entidade
+\end{itemize}
+
+\subsection{Estrutura do Loader Genérico}
+
+O loader genérico recebe como parâmetros:
+\begin{itemize}
+    \item Diretoria do dataset e nome do ficheiro
+    \item Lista de repositórios dependentes (para validações lógicas)
+    \item Função de conversão linha $\rightarrow$ objeto
+    \item Função de adição ao repositório
+    \item Nome do ficheiro de erros
+\end{itemize}
+
+Esta abordagem reduziu significativamente a duplicação de código e tornou o sistema mais flexível e modular, alinhando-se com os objetivos pedagógicos da unidade curricular relativos à modularidade.
+
+
+\chapter{Implementação das funcionalidades}
+
+\section{Validações dos dados}
+
+No projeto, a validação dos dados é realizada em duas fases complementares: a validação sintática e a validação lógica.
+
+\subsection{Validação Sintática}
+
+A validação sintática é efetuada no módulo \texttt{validacoes.c}, onde existem funções específicas para verificar a correção dos campos recebidos do CSV. Nesta fase são analisados aspetos como:
+
+\begin{itemize}
+    \item Número de colunas presentes na linha
+    \item Formato das datas (\texttt{YYYY-MM-DD} e \texttt{YYYY-MM-DD HH:MM})
+    \item Validade de valores numéricos
+    \item Inexistência de campos vazios obrigatórios
+    \item Formato de emails (username@domain.tld)
+    \item Códigos IATA (3 letras maiúsculas)
+    \item Identificadores de voos (formato específico)
+\end{itemize}
+
+\subsection{Validação Lógica}
+
+Após a verificação sintática, os dados passam por uma segunda fase de validação, de natureza lógica, realizada nos repositórios ou no módulo \texttt{dados.c}. Estas validações dependem da relação entre diferentes entidades e asseguram, por exemplo:
+
+\begin{itemize}
+    \item Que um passageiro associado a uma reserva está registado no sistema
+    \item Que os voos referenciados numa reserva existem
+    \item Que as aeronaves associadas a voos estão registadas
+    \item Que as datas de partida e chegada são coerentes
+\end{itemize}
+
+Esta distinção entre validações sintáticas e lógicas garante uma separação clara de responsabilidades, reforça a coerência interna do sistema e evita dependências circulares entre módulos.
+
+
+\section{Queries}
+
+As seis queries implementadas no projeto foram desenvolvidas com base nos requisitos indicados no enunciado, cada uma com objetivos distintos e características próprias ao nível do processamento de dados. Todas se encontram modularizadas nos ficheiros \texttt{query1.c} a \texttt{query6.c}, sendo invocadas pelo gestor de queries após o carregamento integral dos dados.
+
+\subsection{Query 1 -- Informação de Aeroporto}
+
+A Query 1 recebe um código IATA de aeroporto e devolve informação detalhada sobre o mesmo, incluindo nome, cidade, país, tipo, e contagens de chegadas e partidas.
+
+\textbf{Implementação:}
+\begin{itemize}
+    \item Pesquisa direta na hash table do repositório de aeroportos
+    \item As contagens de chegadas e partidas são incrementadas durante o parsing dos voos válidos
+    \item Complexidade: $O(1)$ para a pesquisa
+\end{itemize}
+
+\subsection{Query 2 -- Top N Aeronaves}
+
+A Query 2 lista as N aeronaves com mais voos realizados, opcionalmente filtradas por fabricante.
+
+\textbf{Implementação:}
+\begin{itemize}
+    \item Utilização da hash table \texttt{count\_por\_aircraft} pré-computada durante o parsing
+    \item Conversão para array e ordenação com \texttt{qsort}
+    \item Critério de desempate: ordem alfabética do identificador
+    \item Complexidade: $O(n \log n)$ onde $n$ é o número de aeronaves distintas
+\end{itemize}
+
+\subsection{Query 3 -- Aeroporto com Mais Partidas}
+
+A Query 3 determina o aeroporto com maior número de partidas num intervalo de datas.
+
+\textbf{Implementação:}
+\begin{itemize}
+    \item Utilização da estrutura \texttt{departures\_por\_data} (hash table aninhada: data $\rightarrow$ aeroporto $\rightarrow$ contagem)
+    \item Iteração sobre as datas no intervalo especificado
+    \item Agregação das contagens por aeroporto
+    \item Critério de desempate: ordem alfabética do código IATA
+\end{itemize}
+
+\subsection{Query 4 -- Passageiro mais tempo no Top 10 (Não Implementada)}
+
+A Query 4 deveria identificar o passageiro que esteve mais tempo no top 10 de passageiros com maior gasto em viagens durante um período.
+
+\textbf{Estado atual:}
+\begin{itemize}
+    \item A estrutura base foi definida mas a implementação não foi concluída
+    \item O ficheiro \texttt{query4.c} contém comentários e estruturas preparatórias
+    \item A query está desativada no gestor de queries
+\end{itemize}
+
+\subsection{Query 5 -- Top N Companhias com Maior Atraso Médio}
+
+A Query 5 lista as N companhias aéreas com maior atraso médio nos seus voos.
+
+\textbf{Implementação:}
+\begin{itemize}
+    \item Utilização da hash table \texttt{delay\_por\_companhia} com estatísticas pré-computadas
+    \item Estrutura \texttt{AirlineDelayStats} armazena contagem e soma total de atrasos
+    \item Cálculo da média: \texttt{total\_delay / count}
+    \item Ordenação por média decrescente, desempate alfabético
+    \item Precisão de 3 casas decimais no output
+\end{itemize}
+
+\subsection{Query 6 -- Aeroporto mais visitado por Nacionalidade}
+
+A Query 6 determina o aeroporto de destino mais visitado por passageiros de uma determinada nacionalidade.
+
+\textbf{Implementação:}
+\begin{itemize}
+    \item Utilização de hash table aninhada: nacionalidade $\rightarrow$ aeroporto $\rightarrow$ contagem
+    \item Normalização da nacionalidade (uppercase, trim)
+    \item Critério de desempate: ordem alfabética do código IATA
+    \item A estrutura é populada durante a adição de reservas válidas
+\end{itemize}
+
+
+\section{Programa de Testes}
+
+O programa de testes (\texttt{programa-testes.c}) foi desenvolvido para automatizar a validação das queries implementadas. O seu funcionamento consiste em:
+
+\begin{enumerate}
+    \item Executar o programa principal com o dataset e ficheiro de input especificados
+    \item Comparar os ficheiros de output gerados com os ficheiros esperados
+    \item Apresentar estatísticas de correção por query
+    \item Reportar discrepâncias encontradas (linha e ficheiro)
+    \item Medir tempo de execução e consumo de memória
+\end{enumerate}
+
+A distribuição de comandos por query segue o padrão:
+\begin{itemize}
+    \item Q1: comandos 1-50
+    \item Q2: comandos 51-100
+    \item Q3: comandos 101-150
+    \item Q4: comandos 151-200
+    \item Q5: comandos 201-250
+    \item Q6: comandos 251-300
+\end{itemize}
+
+
+\chapter{Gestão de memória}
+
+A gestão de memória foi um aspeto central no desenvolvimento do projeto, seguindo as boas práticas enfatizadas nos guiões da unidade curricular, nomeadamente no Guião 5 relativo ao Valgrind.
+
+\section{Estratégias de Alocação}
+
+\subsection{Utilização da GLib}
+
+A biblioteca GLib foi utilizada extensivamente para gestão de memória, oferecendo:
+
+\begin{itemize}
+    \item \texttt{g\_new0} e \texttt{g\_slice\_new0} -- Alocação com inicialização a zero
+    \item \texttt{g\_strdup} -- Duplicação segura de strings
+    \item \texttt{g\_free} e \texttt{g\_slice\_free} -- Libertação correspondente
+    \item \texttt{GHashTable} com funções de destruição automática
+\end{itemize}
+
+\subsection{Padrão Construtor/Destrutor}
+
+Todas as entidades seguem o padrão de funções construtoras e destrutoras:
+
+\begin{lstlisting}
+Passenger *passenger_new(const char *id, ...);
+void passenger_free(Passenger *p);
+\end{lstlisting}
+
+As hash tables são configuradas com funções de destruição (\texttt{GDestroyNotify}) que libertam automaticamente as chaves e valores quando a tabela é destruída ou quando elementos são removidos.
+
+\section{Resultados do Valgrind}
+
+Na plataforma de testes oficial, foram reportados:
+
+\begin{itemize}
+    \item \textbf{Leaks:} 0.195 MB (valor residual aceitável)
+    \item \textbf{Memória máxima:} 674 MB (regular) / 4502 MB (large)
+\end{itemize}
+
+Os leaks reportados são mínimos e provavelmente relacionados com estruturas internas da GLib que não são libertadas explicitamente antes do término do programa.
+
+
+\chapter{Análise de Desempenho e Discussão}
+
+\section{Metodologia e Ambiente de Teste}
+
+Os testes foram realizados através da plataforma oficial de testes da unidade curricular, que avalia:
+\begin{itemize}
+    \item Correção das queries (percentagem de outputs corretos)
+    \item Tempo de execução total
+    \item Consumo de memória
+    \item Existência de memory leaks
+\end{itemize}
+
+\section{Resultados Obtidos}
+
+\subsection{Regular Dataset}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|l|c|}
+\hline
+\textbf{Métrica} & \textbf{Valor} \\
+\hline
+Query 1 & 32\% \\
+Query 2 & -- \\
+Query 3 & -- \\
+Query 4 & 20\% \\
+Query 5 & -- \\
+Query 6 & 72\% \\
+\hline
+Tempo Total & 57.6 s \\
+Memória & 674 MB \\
+Leaks & 0.195 MB \\
+\hline
+\end{tabular}
+\caption{Resultados no Regular Dataset}
+\end{table}
+
+\subsection{Large Dataset}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|l|c|}
+\hline
+\textbf{Métrica} & \textbf{Valor} \\
+\hline
+Query 1 & 32\% \\
+Query 2 & -- \\
+Query 3 & -- \\
+Query 4 & 30\% \\
+Query 5 & -- \\
+Query 6 & 0\% \\
+\hline
+Tempo Total & 327.5 s \\
+Memória & 4502 MB \\
+Leaks & 0.195 MB \\
+\hline
+\end{tabular}
+\caption{Resultados no Large Dataset}
+\end{table}
+
+\section{Interpretação dos Resultados}
+
+\subsection{Análise da Query 1}
+
+A Query 1 apresenta uma taxa de correção de 32\% em ambos os datasets. Esta discrepância pode dever-se a:
+\begin{itemize}
+    \item Problemas na contagem de chegadas/partidas durante o parsing
+    \item Diferenças no tratamento de voos cancelados
+    \item Possíveis erros na validação de aeroportos
+\end{itemize}
+
+\subsection{Análise da Query 4}
+
+A Query 4 não foi completamente implementada, o que explica os resultados baixos (20-30\%). O ficheiro \texttt{query4.c} contém apenas a estrutura base e comentários preparatórios.
+
+\subsection{Análise da Query 6}
+
+A Query 6 apresenta uma discrepância significativa entre datasets:
+\begin{itemize}
+    \item \textbf{Regular:} 72\% -- Funcionamento parcialmente correto
+    \item \textbf{Large:} 0\% -- Falha completa
+\end{itemize}
+
+Esta degradação sugere problemas de escalabilidade na implementação, possivelmente relacionados com:
+\begin{itemize}
+    \item Normalização inconsistente de nacionalidades
+    \item Problemas na agregação de dados com volumes maiores
+    \item Possíveis race conditions ou overflow em contadores
+\end{itemize}
+
+\subsection{Desempenho Temporal}
+
+O tempo de execução escala de forma significativa com o tamanho do dataset:
+\begin{itemize}
+    \item Regular: 57.6 segundos
+    \item Large: 327.5 segundos (aproximadamente 5.7x mais lento)
+\end{itemize}
+
+Este fator de crescimento indica que a complexidade temporal não é linear, sugerindo potenciais otimizações nas estruturas de dados ou algoritmos utilizados.
+
+\subsection{Consumo de Memória}
+
+O consumo de memória também escala significativamente:
+\begin{itemize}
+    \item Regular: 674 MB
+    \item Large: 4502 MB (aproximadamente 6.7x mais)
+\end{itemize}
+
+Este crescimento é esperado dado o aumento proporcional no volume de dados, embora possam existir oportunidades de otimização.
+
+
+\chapter{Conclusão}
+
+\section{Objetivos Alcançados}
+
+A segunda fase do projeto permitiu consolidar os conhecimentos adquiridos na primeira fase e aplicá-los num contexto de maior escala. Os principais objetivos alcançados foram:
+
+\begin{itemize}
+    \item Manutenção da arquitetura modular estabelecida na Fase 1
+    \item Implementação parcial das novas queries (Q4, Q5, Q6)
+    \item Utilização de estruturas de dados eficientes (hash tables)
+    \item Desenvolvimento de um programa de testes automatizado
+    \item Gestão adequada de memória com leaks mínimos
+\end{itemize}
+
+\section{Aspetos a Melhorar}
+
+Identificamos os seguintes aspetos que necessitam de melhorias futuras:
+
+\begin{itemize}
+    \item \textbf{Query 1:} Rever a lógica de contagem de chegadas/partidas
+    \item \textbf{Query 4:} Completar a implementação da análise semanal de gastos
+    \item \textbf{Query 6:} Corrigir problemas de escalabilidade no large dataset
+    \item \textbf{Desempenho:} Otimizar algoritmos para reduzir tempo de execução
+    \item \textbf{Modo Interativo:} Implementar a interface interativa especificada no enunciado
+\end{itemize}
+
+\section{Principais Aprendizagens}
+
+O desenvolvimento deste projeto proporcionou aprendizagens valiosas em:
+
+\begin{itemize}
+    \item Aplicação prática de modularidade e encapsulamento em C
+    \item Utilização de estruturas de dados avançadas (hash tables)
+    \item Importância da validação de dados em sistemas reais
+    \item Técnicas de debugging com ferramentas como Valgrind e GDB
+    \item Gestão de projetos colaborativos com Git
+\end{itemize}
+
+\section{Reflexão Crítica}
+
+A segunda fase do projeto revelou-se mais desafiante do que antecipado, particularmente no que diz respeito à implementação das novas queries e à otimização para o large dataset. A Query 4, em particular, requeria uma lógica complexa de análise temporal que não conseguimos completar dentro do prazo.
+
+Os resultados obtidos na plataforma de testes ficaram aquém das expectativas, especialmente nas queries 1, 4 e 6. No entanto, o processo de desenvolvimento permitiu consolidar os conceitos fundamentais de programação em C e preparar-nos para desafios semelhantes em unidades curriculares futuras.
+
+A experiência reforçou a importância de começar a implementação das funcionalidades mais cedo e de realizar testes incrementais ao longo do desenvolvimento, em vez de deixar a validação para o final.
+
+
+\end{document}
+\documentclass[a4paper,12pt]{scrreprt}
+
+\usepackage{geometry} %% Used for changing geometry of the page
+\usepackage[portuguese]{babel} %% Portuguese language
+\usepackage[T1]{fontenc} %% Font setup (pdfLaTeX compatible)
+\usepackage[utf8]{inputenc}
+\usepackage{helvet}
+\renewcommand{\familydefault}{\sfdefault} % Arial-like font
+\usepackage{xcolor,colortbl} %% Colors and tables
+\usepackage{arydshln}
+\usepackage[intoc]{nomencl} %% Acronyms
+\makenomenclature
+\usepackage{graphicx} %% Images
+\graphicspath{{images/}}
+\usepackage{hyperref} %% Hyperlinks
+\hypersetup{
+    colorlinks,
+    citecolor=black,
+    filecolor=black,
+    linkcolor=black,
+    urlcolor=black
+}
+\usepackage{amsmath} %% Math
+\usepackage[some]{background} %% Background (for cover)
+\usepackage{tikz} %% TikZ graphics
+\usetikzlibrary{calc}
+\usepackage{listings} %% Code listings
+\usepackage{float} %% Better float positioning
+
+%% Code listing style
+\lstset{
+    basicstyle=\ttfamily\footnotesize,
+    breaklines=true,
+    frame=single,
+    language=C,
+    showstringspaces=false,
+    numbers=left,
+    numberstyle=\tiny,
+    tabsize=4
+}
+
+%% ======================= %%
+%% DOCUMENT
+\begin{document}
+\include{cover} %% Costume made cover
+\pagenumbering{gobble}
+\makecover % builds the cover
+\newgeometry{top=3cm,left=3cm,right=3cm,bottom=4cm} %% smaller footer and header size
+
+%% BEGIN ABSTRACT PAGE
+\renewenvironment{abstract}
+ {\par\noindent\textbf{\Large\abstractname}\par\bigskip}
+ {}
+
+\pagebreak
+
+%% BEGIN INDEXES PAGES
+\renewcommand{\contentsname}{Índice}
+\tableofcontents
+\pagebreak
+
+
+%% BEGIN INTRODUCTION
+\pagenumbering{arabic}
+\chapter{Introdução}
+
+O presente relatório descreve o desenvolvimento da segunda fase do projeto da unidade curricular de Laboratórios de Informática III, implementado em linguagem C. Este projeto centra-se na construção de um sistema destinado à gestão de informação relativa a voos, passageiros, aeronaves, aeroportos e reservas, armazenada inicialmente em ficheiros CSV.
+
+A Fase 2 representa uma evolução significativa face à Fase 1, introduzindo novas funcionalidades e otimizações que visam suportar datasets de maior escala. Nesta fase, foram implementadas três novas queries (Q4, Q5 e Q6) e foi atualizada a Query 1, conforme especificado no enunciado. Adicionalmente, o sistema foi preparado para lidar com um volume de dados substancialmente maior.
+
+Ao longo desta fase, continuaram a ser aplicados os princípios de modularidade e encapsulamento introduzidos na primeira fase, garantindo uma clara separação de responsabilidades entre componentes. Foi dada especial atenção à utilização de estruturas de dados eficientes, nomeadamente hash tables da biblioteca GLib, para assegurar um desempenho adequado nas operações de pesquisa e agregação de dados.
+
+O sistema inclui um programa principal que coordena o fluxo geral de execução, e um programa de testes destinado a validar o comportamento das funcionalidades implementadas. Esta fase teve como objetivo consolidar a base estrutural e funcional do sistema, preparando-o para responder às exigências de desempenho e correção definidas no enunciado.
+
+
+\chapter{Metodologia utilizada e descrição do sistema}
+
+\section{Arquitetura geral}
+
+A arquitetura do sistema foi concebida de forma modular, mantendo a estrutura base da Fase 1 e expandindo-a para acomodar as novas funcionalidades. O código encontra-se organizado nas seguintes diretorias principais:
+
+\begin{itemize}
+    \item \texttt{src/apresentacao/} -- Contém os programas executáveis: \texttt{programa-principal.c} e \texttt{programa-testes.c}
+    \item \texttt{src/logica/} -- Módulos de lógica de negócio, incluindo queries, validações e gestão de comandos
+    \item \texttt{src/logica/entidades/} -- Definição das entidades do sistema (Airport, Flight, Passenger, Aircraft, Reservation)
+    \item \texttt{src/repositorios/} -- Repositórios para gestão das coleções de entidades
+    \item \texttt{src/parsers/} -- Módulos de parsing de ficheiros CSV
+    \item \texttt{include/} -- Ficheiros de cabeçalho (.h) correspondentes
+\end{itemize}
+
+No centro do fluxo encontra-se o programa principal, responsável por iniciar o sistema, carregar os dados através do parser genérico e construir os repositórios das diferentes entidades. Este programa coordena, posteriormente, a execução das queries através do módulo \texttt{gestor-queries.c} e a apresentação dos respetivos resultados.
+
+O módulo \texttt{dados.c} funciona como agregador central, contendo referências para todos os repositórios e estruturas auxiliares necessárias às queries. Esta abordagem permite que as queries acedam aos dados de forma uniforme, sem necessidade de conhecer os detalhes de implementação de cada repositório.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+    box/.style={rectangle, draw, minimum width=2.5cm, minimum height=0.8cm, align=center},
+    arrow/.style={->, thick}
+]
+    % Programa Principal
+    \node[box, fill=blue!20] (main) at (0,4) {Programa\\Principal};
+    
+    % Parser
+    \node[box, fill=green!20] (parser) at (-3,2) {Parser};
+    
+    % Dados
+    \node[box, fill=yellow!20] (dados) at (0,2) {Dados};
+    
+    % Gestor Queries
+    \node[box, fill=orange!20] (gestor) at (3,2) {Gestor\\Queries};
+    
+    % Repositórios
+    \node[box, fill=gray!20] (repos) at (-3,0) {Repositórios};
+    
+    % Entidades
+    \node[box, fill=purple!20] (entidades) at (0,0) {Entidades};
+    
+    % Queries
+    \node[box, fill=red!20] (queries) at (3,0) {Q1-Q6};
+    
+    % Output
+    \node[box, fill=cyan!20] (output) at (3,-2) {Output};
+    
+    % Arrows
+    \draw[arrow] (main) -- (parser);
+    \draw[arrow] (main) -- (dados);
+    \draw[arrow] (main) -- (gestor);
+    \draw[arrow] (parser) -- (repos);
+    \draw[arrow] (repos) -- (entidades);
+    \draw[arrow] (dados) -- (repos);
+    \draw[arrow] (gestor) -- (queries);
+    \draw[arrow] (queries) -- (dados);
+    \draw[arrow] (queries) -- (output);
+\end{tikzpicture}
+\caption{Arquitetura geral do sistema}
+\end{figure}
+
+Esta arquitetura permitiu a construção de um sistema coerente, bem estruturado e facilmente extensível, respeitando os princípios de modularidade e encapsulamento enfatizados nos guiões da unidade curricular.
+
+
+\section{Estruturas de dados}
+
+Cada entidade é representada por uma \texttt{struct} definida no respetivo ficheiro de implementação, garantindo o encapsulamento. As entidades \texttt{Passenger}, \texttt{Airport}, \texttt{Aircraft}, \texttt{Flight} e \texttt{Reservation} incluem apenas os campos necessários para as validações e para as queries, evitando armazenar informação redundante.
+
+\subsection{Repositórios e Hash Tables}
+
+No que diz respeito ao armazenamento, cada tipo de entidade é guardado no seu repositório através de uma \texttt{GHashTable} da biblioteca GLib. Esta escolha permite pesquisas em tempo constante $O(1)$, uma vez que cada entidade pode ser acedida diretamente através do seu identificador. Por exemplo, o \texttt{RepositorioFlights} mantém:
+
+\begin{itemize}
+    \item \texttt{by\_id} -- Hash table principal para acesso por identificador do voo
+    \item \texttt{count\_por\_aircraft} -- Hash table para contagem de voos por aeronave (Q2)
+    \item \texttt{departures\_por\_data} -- Hash table aninhada para partidas por data e aeroporto (Q3)
+    \item \texttt{delay\_por\_companhia} -- Hash table para estatísticas de atrasos por companhia (Q5)
+\end{itemize}
+
+\subsection{Estruturas Auxiliares para Queries}
+
+Para operações que exigem ordenação ou percursos sequenciais, são utilizados arrays dinâmicos (\texttt{GArray} ou arrays C convencionais), que facilitam a organização e ordenação dos elementos através da função \texttt{qsort}.
+
+A Query 6 requer uma estrutura auxiliar baseada numa hash table aninhada no módulo \texttt{dados.c}, onde cada chave representa uma nacionalidade e o valor corresponde a outra hash table que mapeia aeroportos para contagens de chegadas.
+
+\subsection{Alocação de Memória}
+
+A alocação de memória é realizada maioritariamente através das funções da GLib (\texttt{g\_new0}, \texttt{g\_slice\_new0}, \texttt{g\_strdup}), que oferecem gestão de memória otimizada. Todas as entidades possuem funções construtoras e destrutoras dedicadas, seguindo o padrão:
+
+\begin{lstlisting}
+Flight *flight_new(...);
+void flight_free(Flight *f);
+\end{lstlisting}
+
+
+\section{Parsing dos dados}
+
+O parsing foi desenvolvido com base num módulo genérico (\texttt{parser.c}) que pode operar sobre qualquer tipo de entidade, desde que lhe seja fornecida a função de construção apropriada. O parser lê os ficheiros CSV, separa as colunas através da função \texttt{split\_csv\_line}, verifica a validade sintática da linha, converte-a numa entidade se os dados forem válidos e insere a entidade no respetivo repositório.
+
+\subsection{Otimizações de Parsing}
+
+Na Fase 2, foram implementadas várias otimizações no parsing para lidar com datasets de maior dimensão:
+
+\begin{itemize}
+    \item \textbf{Buffering aumentado} -- Utilização de \texttt{setvbuf} com buffers de 1 MB tanto para leitura como para escrita de erros
+    \item \textbf{Ficheiro de erros único} -- O ficheiro de erros é aberto uma única vez por entidade, em vez de abrir/fechar por linha inválida
+    \item \textbf{Função genérica de loading} -- A função \texttt{generic\_loader} centraliza a lógica comum de carregamento, recebendo ponteiros para funções específicas de cada entidade
+\end{itemize}
+
+\subsection{Estrutura do Loader Genérico}
+
+O loader genérico recebe como parâmetros:
+\begin{itemize}
+    \item Diretoria do dataset e nome do ficheiro
+    \item Lista de repositórios dependentes (para validações lógicas)
+    \item Função de conversão linha $\rightarrow$ objeto
+    \item Função de adição ao repositório
+    \item Nome do ficheiro de erros
+\end{itemize}
+
+Esta abordagem reduziu significativamente a duplicação de código e tornou o sistema mais flexível e modular, alinhando-se com os objetivos pedagógicos da unidade curricular relativos à modularidade.
+
+
+\chapter{Implementação das funcionalidades}
+
+\section{Validações dos dados}
+
+No projeto, a validação dos dados é realizada em duas fases complementares: a validação sintática e a validação lógica.
+
+\subsection{Validação Sintática}
+
+A validação sintática é efetuada no módulo \texttt{validacoes.c}, onde existem funções específicas para verificar a correção dos campos recebidos do CSV. Nesta fase são analisados aspetos como:
+
+\begin{itemize}
+    \item Número de colunas presentes na linha
+    \item Formato das datas (\texttt{YYYY-MM-DD} e \texttt{YYYY-MM-DD HH:MM})
+    \item Validade de valores numéricos
+    \item Inexistência de campos vazios obrigatórios
+    \item Formato de emails (username@domain.tld)
+    \item Códigos IATA (3 letras maiúsculas)
+    \item Identificadores de voos (formato específico)
+\end{itemize}
+
+\subsection{Validação Lógica}
+
+Após a verificação sintática, os dados passam por uma segunda fase de validação, de natureza lógica, realizada nos repositórios ou no módulo \texttt{dados.c}. Estas validações dependem da relação entre diferentes entidades e asseguram, por exemplo:
+
+\begin{itemize}
+    \item Que um passageiro associado a uma reserva está registado no sistema
+    \item Que os voos referenciados numa reserva existem
+    \item Que as aeronaves associadas a voos estão registadas
+    \item Que as datas de partida e chegada são coerentes
+\end{itemize}
+
+Esta distinção entre validações sintáticas e lógicas garante uma separação clara de responsabilidades, reforça a coerência interna do sistema e evita dependências circulares entre módulos.
+
+
+\section{Queries}
+
+As seis queries implementadas no projeto foram desenvolvidas com base nos requisitos indicados no enunciado, cada uma com objetivos distintos e características próprias ao nível do processamento de dados. Todas se encontram modularizadas nos ficheiros \texttt{query1.c} a \texttt{query6.c}, sendo invocadas pelo gestor de queries após o carregamento integral dos dados.
+
+\subsection{Query 1 -- Informação de Aeroporto}
+
+A Query 1 recebe um código IATA de aeroporto e devolve informação detalhada sobre o mesmo, incluindo nome, cidade, país, tipo, e contagens de chegadas e partidas.
+
+\textbf{Implementação:}
+\begin{itemize}
+    \item Pesquisa direta na hash table do repositório de aeroportos
+    \item As contagens de chegadas e partidas são incrementadas durante o parsing dos voos válidos
+    \item Complexidade: $O(1)$ para a pesquisa
+\end{itemize}
+
+\subsection{Query 2 -- Top N Aeronaves}
+
+A Query 2 lista as N aeronaves com mais voos realizados, opcionalmente filtradas por fabricante.
+
+\textbf{Implementação:}
+\begin{itemize}
+    \item Utilização da hash table \texttt{count\_por\_aircraft} pré-computada durante o parsing
+    \item Conversão para array e ordenação com \texttt{qsort}
+    \item Critério de desempate: ordem alfabética do identificador
+    \item Complexidade: $O(n \log n)$ onde $n$ é o número de aeronaves distintas
+\end{itemize}
+
+\subsection{Query 3 -- Aeroporto com Mais Partidas}
+
+A Query 3 determina o aeroporto com maior número de partidas num intervalo de datas.
+
+\textbf{Implementação:}
+\begin{itemize}
+    \item Utilização da estrutura \texttt{departures\_por\_data} (hash table aninhada: data $\rightarrow$ aeroporto $\rightarrow$ contagem)
+    \item Iteração sobre as datas no intervalo especificado
+    \item Agregação das contagens por aeroporto
+    \item Critério de desempate: ordem alfabética do código IATA
+\end{itemize}
+
+\subsection{Query 4 -- Passageiro mais tempo no Top 10 (Não Implementada)}
+
+A Query 4 deveria identificar o passageiro que esteve mais tempo no top 10 de passageiros com maior gasto em viagens durante um período.
+
+\textbf{Estado atual:}
+\begin{itemize}
+    \item A estrutura base foi definida mas a implementação não foi concluída
+    \item O ficheiro \texttt{query4.c} contém comentários e estruturas preparatórias
+    \item A query está desativada no gestor de queries
+\end{itemize}
+
+\subsection{Query 5 -- Top N Companhias com Maior Atraso Médio}
+
+A Query 5 lista as N companhias aéreas com maior atraso médio nos seus voos.
+
+\textbf{Implementação:}
+\begin{itemize}
+    \item Utilização da hash table \texttt{delay\_por\_companhia} com estatísticas pré-computadas
+    \item Estrutura \texttt{AirlineDelayStats} armazena contagem e soma total de atrasos
+    \item Cálculo da média: \texttt{total\_delay / count}
+    \item Ordenação por média decrescente, desempate alfabético
+    \item Precisão de 3 casas decimais no output
+\end{itemize}
+
+\subsection{Query 6 -- Aeroporto mais visitado por Nacionalidade}
+
+A Query 6 determina o aeroporto de destino mais visitado por passageiros de uma determinada nacionalidade.
+
+\textbf{Implementação:}
+\begin{itemize}
+    \item Utilização de hash table aninhada: nacionalidade $\rightarrow$ aeroporto $\rightarrow$ contagem
+    \item Normalização da nacionalidade (uppercase, trim)
+    \item Critério de desempate: ordem alfabética do código IATA
+    \item A estrutura é populada durante a adição de reservas válidas
+\end{itemize}
+
+
+\section{Programa de Testes}
+
+O programa de testes (\texttt{programa-testes.c}) foi desenvolvido para automatizar a validação das queries implementadas. O seu funcionamento consiste em:
+
+\begin{enumerate}
+    \item Executar o programa principal com o dataset e ficheiro de input especificados
+    \item Comparar os ficheiros de output gerados com os ficheiros esperados
+    \item Apresentar estatísticas de correção por query
+    \item Reportar discrepâncias encontradas (linha e ficheiro)
+    \item Medir tempo de execução e consumo de memória
+\end{enumerate}
+
+A distribuição de comandos por query segue o padrão:
+\begin{itemize}
+    \item Q1: comandos 1-50
+    \item Q2: comandos 51-100
+    \item Q3: comandos 101-150
+    \item Q4: comandos 151-200
+    \item Q5: comandos 201-250
+    \item Q6: comandos 251-300
+\end{itemize}
+
+
+\chapter{Gestão de memória}
+
+A gestão de memória foi um aspeto central no desenvolvimento do projeto, seguindo as boas práticas enfatizadas nos guiões da unidade curricular, nomeadamente no Guião 5 relativo ao Valgrind.
+
+\section{Estratégias de Alocação}
+
+\subsection{Utilização da GLib}
+
+A biblioteca GLib foi utilizada extensivamente para gestão de memória, oferecendo:
+
+\begin{itemize}
+    \item \texttt{g\_new0} e \texttt{g\_slice\_new0} -- Alocação com inicialização a zero
+    \item \texttt{g\_strdup} -- Duplicação segura de strings
+    \item \texttt{g\_free} e \texttt{g\_slice\_free} -- Libertação correspondente
+    \item \texttt{GHashTable} com funções de destruição automática
+\end{itemize}
+
+\subsection{Padrão Construtor/Destrutor}
+
+Todas as entidades seguem o padrão de funções construtoras e destrutoras:
+
+\begin{lstlisting}
+Passenger *passenger_new(const char *id, ...);
+void passenger_free(Passenger *p);
+\end{lstlisting}
+
+As hash tables são configuradas com funções de destruição (\texttt{GDestroyNotify}) que libertam automaticamente as chaves e valores quando a tabela é destruída ou quando elementos são removidos.
+
+\section{Resultados do Valgrind}
+
+Na plataforma de testes oficial, foram reportados:
+
+\begin{itemize}
+    \item \textbf{Leaks:} 0.195 MB (valor residual aceitável)
+    \item \textbf{Memória máxima:} 674 MB (regular) / 4502 MB (large)
+\end{itemize}
+
+Os leaks reportados são mínimos e provavelmente relacionados com estruturas internas da GLib que não são libertadas explicitamente antes do término do programa.
+
+
+\chapter{Análise de Desempenho e Discussão}
+
+\section{Metodologia e Ambiente de Teste}
+
+Os testes foram realizados através da plataforma oficial de testes da unidade curricular, que avalia:
+\begin{itemize}
+    \item Correção das queries (percentagem de outputs corretos)
+    \item Tempo de execução total
+    \item Consumo de memória
+    \item Existência de memory leaks
+\end{itemize}
+
+\section{Resultados Obtidos}
+
+\subsection{Regular Dataset}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|l|c|}
+\hline
+\textbf{Métrica} & \textbf{Valor} \\
+\hline
+Query 1 & 32\% \\
+Query 2 & -- \\
+Query 3 & -- \\
+Query 4 & 20\% \\
+Query 5 & -- \\
+Query 6 & 72\% \\
+\hline
+Tempo Total & 57.6 s \\
+Memória & 674 MB \\
+Leaks & 0.195 MB \\
+\hline
+\end{tabular}
+\caption{Resultados no Regular Dataset}
+\end{table}
+
+\subsection{Large Dataset}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|l|c|}
+\hline
+\textbf{Métrica} & \textbf{Valor} \\
+\hline
+Query 1 & 32\% \\
+Query 2 & -- \\
+Query 3 & -- \\
+Query 4 & 30\% \\
+Query 5 & -- \\
+Query 6 & 0\% \\
+\hline
+Tempo Total & 327.5 s \\
+Memória & 4502 MB \\
+Leaks & 0.195 MB \\
+\hline
+\end{tabular}
+\caption{Resultados no Large Dataset}
+\end{table}
+
+\section{Interpretação dos Resultados}
+
+\subsection{Análise da Query 1}
+
+A Query 1 apresenta uma taxa de correção de 32\% em ambos os datasets. Esta discrepância pode dever-se a:
+\begin{itemize}
+    \item Problemas na contagem de chegadas/partidas durante o parsing
+    \item Diferenças no tratamento de voos cancelados
+    \item Possíveis erros na validação de aeroportos
+\end{itemize}
+
+\subsection{Análise da Query 4}
+
+A Query 4 não foi completamente implementada, o que explica os resultados baixos (20-30\%). O ficheiro \texttt{query4.c} contém apenas a estrutura base e comentários preparatórios.
+
+\subsection{Análise da Query 6}
+
+A Query 6 apresenta uma discrepância significativa entre datasets:
+\begin{itemize}
+    \item \textbf{Regular:} 72\% -- Funcionamento parcialmente correto
+    \item \textbf{Large:} 0\% -- Falha completa
+\end{itemize}
+
+Esta degradação sugere problemas de escalabilidade na implementação, possivelmente relacionados com:
+\begin{itemize}
+    \item Normalização inconsistente de nacionalidades
+    \item Problemas na agregação de dados com volumes maiores
+    \item Possíveis race conditions ou overflow em contadores
+\end{itemize}
+
+\subsection{Desempenho Temporal}
+
+O tempo de execução escala de forma significativa com o tamanho do dataset:
+\begin{itemize}
+    \item Regular: 57.6 segundos
+    \item Large: 327.5 segundos (aproximadamente 5.7x mais lento)
+\end{itemize}
+
+Este fator de crescimento indica que a complexidade temporal não é linear, sugerindo potenciais otimizações nas estruturas de dados ou algoritmos utilizados.
+
+\subsection{Consumo de Memória}
+
+O consumo de memória também escala significativamente:
+\begin{itemize}
+    \item Regular: 674 MB
+    \item Large: 4502 MB (aproximadamente 6.7x mais)
+\end{itemize}
+
+Este crescimento é esperado dado o aumento proporcional no volume de dados, embora possam existir oportunidades de otimização.
+
+
+\chapter{Conclusão}
+
+\section{Objetivos Alcançados}
+
+A segunda fase do projeto permitiu consolidar os conhecimentos adquiridos na primeira fase e aplicá-los num contexto de maior escala. Os principais objetivos alcançados foram:
+
+\begin{itemize}
+    \item Manutenção da arquitetura modular estabelecida na Fase 1
+    \item Implementação parcial das novas queries (Q4, Q5, Q6)
+    \item Utilização de estruturas de dados eficientes (hash tables)
+    \item Desenvolvimento de um programa de testes automatizado
+    \item Gestão adequada de memória com leaks mínimos
+\end{itemize}
+
+\section{Aspetos a Melhorar}
+
+Identificamos os seguintes aspetos que necessitam de melhorias futuras:
+
+\begin{itemize}
+    \item \textbf{Query 1:} Rever a lógica de contagem de chegadas/partidas
+    \item \textbf{Query 4:} Completar a implementação da análise semanal de gastos
+    \item \textbf{Query 6:} Corrigir problemas de escalabilidade no large dataset
+    \item \textbf{Desempenho:} Otimizar algoritmos para reduzir tempo de execução
+    \item \textbf{Modo Interativo:} Implementar a interface interativa especificada no enunciado
+\end{itemize}
+
+\section{Principais Aprendizagens}
+
+O desenvolvimento deste projeto proporcionou aprendizagens valiosas em:
+
+\begin{itemize}
+    \item Aplicação prática de modularidade e encapsulamento em C
+    \item Utilização de estruturas de dados avançadas (hash tables)
+    \item Importância da validação de dados em sistemas reais
+    \item Técnicas de debugging com ferramentas como Valgrind e GDB
+    \item Gestão de projetos colaborativos com Git
+\end{itemize}
+
+\section{Reflexão Crítica}
+
+A segunda fase do projeto revelou-se mais desafiante do que antecipado, particularmente no que diz respeito à implementação das novas queries e à otimização para o large dataset. A Query 4, em particular, requeria uma lógica complexa de análise temporal que não conseguimos completar dentro do prazo.
+
+Os resultados obtidos na plataforma de testes ficaram aquém das expectativas, especialmente nas queries 1, 4 e 6. No entanto, o processo de desenvolvimento permitiu consolidar os conceitos fundamentais de programação em C e preparar-nos para desafios semelhantes em unidades curriculares futuras.
+
+A experiência reforçou a importância de começar a implementação das funcionalidades mais cedo e de realizar testes incrementais ao longo do desenvolvimento, em vez de deixar a validação para o final.
+
+
+\end{document}
